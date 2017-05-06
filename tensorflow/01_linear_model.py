@@ -194,7 +194,7 @@ biases = tf.Variable(tf.zeros([num_classes]))
 # create a mathematical model
 logits = tf.matmul(x, weights) + biases
 y_pred = tf.nn.softmax(logits)                      # normalization with softmax
-y_pred_cls = tf.arg_max(y_pred, dimension = 1)      # pick out the largest element as the predicted class   
+y_pred_cls = tf.argmax(y_pred, dimension = 1)      # pick out the largest element as the predicted class   
 
 # calculate cross-entropy loss
 # use logits instead of y_pred due to an internal softmax
