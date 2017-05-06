@@ -3,7 +3,7 @@
 """
 Created on Fri May  5 10:52:26 2017
 
-@author: txzhao
+@author: MMGF2
 """
 
 import matplotlib.pyplot as plt
@@ -45,7 +45,7 @@ def optimize(num_iterations, batch_size):
         # get a batch of raining examples
         # x_batch now holds a batch of images and
         # y_true_batch are the true labels for those images
-        x_batch, y_true_batch = data.train.next_batch(10)
+        x_batch, y_true_batch = data.train.next_batch(batch_size)
         
         # Put the batch into a dict with the proper names
         # for placeholder variables in the TensorFlow graph
@@ -81,6 +81,7 @@ def print_confusion_matrix():
     print(cm)
     
     # Plot the confusion matrix as an image
+    plt.figure()
     plt.imshow(cm, interpolation = 'nearest', cmap = plt.cm.Blues)
    
     # Make various adjustments to the plot
@@ -92,18 +93,64 @@ def print_confusion_matrix():
     plt.xlabel('Predicted')
     plt.ylabel('True')
 
+    
 # plot misclassified examples of images
 def plot_example_errors():
     # Use TensorFlow to get a list of boolean values
     # whether each test-image has been correctly classified,
     # and a list for the predicted class of each image
+    correct, cls_pred = session.run([correct_prediction, y_pred_cls], feed_dict = feed_dict_test)
     
+    # pick out misclassified samples
+    incorrect = (correct == False)
     
+    # fetch images classified incorrectly
+    images = data.test.images[incorrect]
     
-    
-    
-    
+    # get the predicted and true classes
+    cls_pred = cls_pred[incorrect]
+    cls_true = data.test.cls[incorrect]
 
+    # plot the first 9 images
+    plot_images(images = images[0:9], cls_true = cls_true[0:9], cls_pred = cls_pred[0:9])
+       
+
+# plot the weights of model
+def plot_weights():
+    # Get the values for the weights from the TensorFlow variable
+    w = session.run(weights)
+    w_min = np.min(w)
+    w_max = np.max(w)
+    
+    # create sub-plots
+    fig, axes = plt.subplots(3, 4)
+    fig.subplots_adjust(hspace = 0.3, wspace = 0.3)
+
+    for i, ax in enumerate(axes.flat):
+        # Only use the weights for the first 10 sub-plots
+        if i < 10:
+            # Get the weights for the i'th digit and reshape it
+            image = w[:, i].reshape(img_shape)
+
+            # Set the label for the sub-plot
+            ax.set_xlabel("Weights: {0}".format(i))
+
+            # plot the image
+            ax.imshow(image, vmin = w_min, vmax = w_max, cmap = 'seismic')
+
+        # remove ticks
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        
+def main(num_iterations, batch_size):
+    optimize(num_iterations = num_iterations, batch_size = batch_size)
+    print_accuracy()
+    plot_example_errors()
+    plot_weights()
+    print_confusion_matrix()
+    
+    
 ## ==============  data preparation  ================     
 # load data automatically
 data = input_data.read_data_sets("data/MNIST/", one_hot = True)
@@ -173,6 +220,7 @@ session.run(tf.global_variables_initializer())
 feed_dict_test = {x: data.test.images, y_true: data.test.labels, y_true_cls: data.test.cls}
 
 
+main(num_iterations = 1000, batch_size = 1000)
 
     
 
