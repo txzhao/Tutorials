@@ -108,6 +108,103 @@ def new_fc_layer(input, num_inputs, num_outputs, use_relu = True):
     
     return layer
 
+# mini-batch optimization
+def optimize(num_iterations, train_batch_size = 64):
+    global total_iterations    
+    start_time = time.time()
+    
+    for i in range(total_iterations, total_iterations + num_iterations):
+        # get a batch of training data
+        x_batch, y_true_batch = data.train.next_batch(train_batch_size)
+        
+        # put batch into a dict with the proper names
+        feed_dict_train = {x: x_batch, y_true: y_true_batch}
+
+        # run the optimizer
+        session.run(optimizer, feed_dict = feed_dict_train)
+        
+        # print intermidiate results every 100 iterations
+        if i%100 == 0:
+            # calculate accuracy on training dataset and print
+            acc = session.run(accuracy, feed_dict = feed_dict_train)
+            msg = "Optimization Iteration: {0:>6}, Training Accuracy: {1:>6.1%}"
+            print(msg.format(i + 1, acc))
+    
+    # update iterations and time usage
+    total_iterations += num_iterations
+    end_time = time.time()
+    time_diff = end_time - start_time
+    print("Time Usage: " + str(timedelta(seconds = int(round(time_diff)))))
+
+
+def plot_example_errors(cls_pred, correct):
+    incorrect = (correct == False)
+    
+    # get misclassified images
+    images = data.test.images[incorrect]
+    
+    # get corresponding predicted classes and ground truth
+    cls_pred = cls_pred[incorrect]
+    cls_true = data.test.cls[incorrect]
+    
+    plot_images(images = images[0:9], cls_true = cls_true[0:9], cls_pred = cls_pred[0:9])
+    
+
+def plot_confusion_matrix(cls_pred):
+    # true classification
+    cls_true = data.test.cls
+    
+    # get the confusion matrix and print out
+    cm = confusion_matrix(y_true = cls_true, y_pred = cls_pred)
+    print(cm)
+    plt.matshow(cm)
+    
+    # plot adjustment
+    plt.colorbar()
+    tick_marks = np.arange(num_classes)
+    plt.xticks(tick_marks, range(num_classes))
+    plt.yticks(tick_marks, range(num_classes))
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    
+    plt.show()
+    
+
+def print_test_accuracy(test_batch_size = 256, show_example_errors = False, 
+                        show_confusion_matrix = False):
+    # number of images in the test set
+    num_test = len(data.test.images)
+    cls_pred = np.zeros(shape = num_test, dtype = np.int)
+    
+    i = 0
+    while i < num_test:
+        j = min(i + test_batch_size, num_test)      # ending index
+        
+        # get image batch and labels from i to j
+        images = data.test.images[i:j, :]
+        labels = data.test.labels[i:j, :]
+        feed_dict = {x: images, y_true: labels}
+        
+        # calculate the predictd class
+        cls_pred[i:j] = session.run(y_pred_cls, feed_dict = feed_dict)
+        i = j
+    
+    # calculate test accuracy and print out
+    cls_true = data.test.cls
+    correct = (cls_true == cls_pred)
+    correct_sum = correct.sum()
+    acc = float(correct_sum)/num_test
+    msg = "Accuracy on Test-set: {0:.1%} ({1}/{2})"
+    print(msg.format(acc, correct_sum, num_test))
+    
+    if show_example_errors:
+        print("Example errors:")
+        plot_example_errors(cls_pred = cls_pred, correct = correct)
+    
+    if show_confusion_matrix:
+        print("Confusion matrix:")
+        plot_confusion_matrix(cls_pred = cls_pred)   
+
 
 ## ==============  network configuration  ================
 # ConvNet layer1
@@ -137,11 +234,11 @@ print("- Validation-set:\t\t{}".format(len(data.validation.labels)))
 data.test.cls = np.argmax(data.test.labels, axis = 1)
 
 # obtain data dimensions
-img_size_flat = np.shape(data.train.images)[1]      # image size in the form of a 1d vector
-img_size = np.sqrt(img_size_flat)                   # image size in each dimension
-img_shape = (img_size, img_size)                    # tuple with height and width of images
-num_classes = np.shape(data.test.labels)[1]         # number of classes
-num_channels = 1                                    # number of color channels
+img_size_flat = int(np.shape(data.train.images)[1])     # image size in the form of a 1d vector
+img_size = int(np.sqrt(img_size_flat))                  # image size in each dimension
+img_shape = (img_size, img_size)                        # tuple with height and width of images
+num_classes = np.shape(data.test.labels)[1]             # number of classes
+num_channels = 1                                        # number of color channels
 
 # get images from the test-set
 images = data.test.images[0:9]
@@ -166,9 +263,53 @@ layer_conv1, weights_conv1 = new_conv_layer(input = x_image, num_input_channels 
                                             use_pooling = True)
 
 # covolutional layer2
-layer_conv2, weights_conv2 = new_conv_layer(input = x_image, num_input_channels = num_channels, 
-                                            filter_size = filter_size_1, num_filters = num_filters_1, 
+layer_conv2, weights_conv2 = new_conv_layer(input = layer_conv1, num_input_channels = num_filters_1, 
+                                            filter_size = filter_size_2, num_filters = num_filters_2, 
                                             use_pooling = True)
+
+# flatten layer
+layer_flat, num_features = flatten_layer(layer_conv2)
+
+# fully-connected layer1
+layer_fc_1 = new_fc_layer(input = layer_flat, num_inputs = num_features, 
+                          num_outputs = fc_size, use_relu = True)
+
+# fully-connected layer2
+layer_fc_2 = new_fc_layer(input = layer_fc_1, num_inputs = fc_size, 
+                          num_outputs = num_classes, use_relu = False)
+
+# predict classes
+y_pred = tf.nn.softmax(layer_fc_2)
+y_pred_cls = tf.argmax(y_pred, dimension = 1)
+
+# calculate cost function
+cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits = layer_fc_2, labels = y_true)
+cost = tf.reduce_mean(cross_entropy)
+
+# optimization method
+optimizer = tf.train.AdamOptimizer(learning_rate = 1e-4).minimize(cost)
+
+# performance measures
+correct_prediction = tf.equal(y_pred_cls, y_true_cls)
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+
+## ==============  tensorflow run  ================
+# create tensorflow session
+session = tf.Session()
+
+# initialize variables
+session.run(tf.global_variables_initializer())
+
+train_batch_size = 64
+total_iterations = 0
+
+
+
+
+
+
+
 
 
 
