@@ -11,12 +11,21 @@ import tensorflow as tf
 import numpy as np 
 from sklearn.metrics import confusion_matrix
 import time
-from datetime import timedelta
 import math
+from datetime import timedelta
 from tensorflow.examples.tutorials.mnist import input_data
 
 
 ## ==============  define functions  ================
+# plot a single image
+def plot_image(image):
+    plt.figure()
+    plt.imshow(image.reshape(img_shape), 
+               interpolation = 'nearest', cmap = 'binary')
+    plt.show()
+
+
+# create a figure with a grid of subplots
 def plot_images(images, cls_true, cls_pred = None):
     # test the condition below and trigger an error if false
     assert len(images) == len(cls_true) == 9
@@ -137,6 +146,7 @@ def optimize(num_iterations, train_batch_size = 64):
     print("Time Usage: " + str(timedelta(seconds = int(round(time_diff)))))
 
 
+# plot misclassified images
 def plot_example_errors(cls_pred, correct):
     incorrect = (correct == False)
     
@@ -150,6 +160,7 @@ def plot_example_errors(cls_pred, correct):
     plot_images(images = images[0:9], cls_true = cls_true[0:9], cls_pred = cls_pred[0:9])
     
 
+# plot and print confusion matrix
 def plot_confusion_matrix(cls_pred):
     # true classification
     cls_true = data.test.cls
@@ -170,6 +181,7 @@ def plot_confusion_matrix(cls_pred):
     plt.show()
     
 
+# evaluate the network with test data
 def print_test_accuracy(test_batch_size = 256, show_example_errors = False, 
                         show_confusion_matrix = False):
     # number of images in the test set
@@ -206,18 +218,74 @@ def print_test_accuracy(test_batch_size = 256, show_example_errors = False,
         plot_confusion_matrix(cls_pred = cls_pred)   
 
 
-## ==============  network configuration  ================
-# ConvNet layer1
-filter_size_1 = 5
-num_filters_1 = 16
+# function for plotting convolutional weights
+def plot_conv_weights(weights, input_channel = 0):
+    # retrieve weights-variable from TensorFlow
+    w = session.run(weights)
+    w_min = np.min(w)
+    w_max = np.max(w)
+    
+    # obtain number of filters and number of grids for plotting
+    num_filters = w.shape[3]
+    num_grids = int(math.ceil(math.sqrt(num_filters)))
+    
+    # create figure with a grid of sub-plots
+    fig, axes = plt.subplots(num_grids, num_grids)
+    
+    for i, ax in enumerate(axes.flat):
+        if i < num_filters:
+            img = w[:, :, input_channel, i]
+            ax.imshow(img, vmin = w_min, vmax = w_max, 
+                      interpolation = 'nearest', cmap = 'seismic')
+        
+        # remove ticks
+        ax.set_xticks([])
+        ax.set_yticks([])
+        
+    plt.show()
+    
 
-# ConvNet layer2
-filter_size_2 = 5
-num_filters_2 = 36
+# plot the output of a conv-layer
+def plot_conv_layer(layer, image):
+    # create a feed-dict for a single image
+    feed_dict = {x: [image]}
+    
+    # feed network graph with one image and retrieve results
+    values = session.run(layer, feed_dict = feed_dict)
+    
+    # obtain number of filters and number of grids for plotting
+    num_filters = values.shape[3]
+    num_grids = int(math.ceil(math.sqrt(num_filters)))
+    
+    # create figure with a grid of sub-plots
+    fig, axes = plt.subplots(num_grids, num_grids)
+    
+    for i, ax in enumerate(axes.flat):
+        if i < num_filters:
+            img = values[0, :, :, i]
+            ax.imshow(img, interpolation = 'nearest', cmap = 'binary')
+        
+        # remove ticks
+        ax.set_xticks([])
+        ax.set_yticks([])
+        
+    plt.show()
+    
 
-# fully-connected layer
-fc_size = 128
-
+def main(num_iterations, train_batch_size, test_batch_size):  
+    # train and output results
+    optimize(num_iterations = num_iterations, train_batch_size = train_batch_size)
+    print_test_accuracy(test_batch_size = test_batch_size, 
+                        show_example_errors = True, show_confusion_matrix = True)
+    
+    # look into inner workings
+    im_1 = data.test.images[0]
+    plot_image(im_1)
+    plot_conv_weights(weights = weights_conv_1)
+    plot_conv_weights(weights = weights_conv_2)
+    plot_conv_layer(layer = layer_conv_1, image = im_1)
+    plot_conv_layer(layer = layer_conv_2, image = im_1)
+    
 
 ## ==============  data preparation  ================    
 # load data automatically
@@ -251,6 +319,18 @@ plot_images(images = images, cls_true = cls_true)
 
 
 ## ==============  tensorflow graph setup  ================
+# network configuration
+# ConvNet layer1
+filter_size_1 = 5
+num_filters_1 = 16
+
+# ConvNet layer2
+filter_size_2 = 5
+num_filters_2 = 36
+
+# fully-connected layer
+fc_size = 128
+
 # define placeholder variables
 x = tf.placeholder(tf.float32, shape = [None, img_size_flat], name = 'x')
 x_image = tf.reshape(x, [-1, img_size, img_size, num_channels])
@@ -258,17 +338,17 @@ y_true = tf.placeholder(tf.float32, shape = [None, num_classes], name = 'y_true'
 y_true_cls = tf.argmax(y_true, dimension = 1)
 
 # covolutional layer1
-layer_conv1, weights_conv1 = new_conv_layer(input = x_image, num_input_channels = num_channels, 
+layer_conv_1, weights_conv_1 = new_conv_layer(input = x_image, num_input_channels = num_channels, 
                                             filter_size = filter_size_1, num_filters = num_filters_1, 
                                             use_pooling = True)
 
 # covolutional layer2
-layer_conv2, weights_conv2 = new_conv_layer(input = layer_conv1, num_input_channels = num_filters_1, 
+layer_conv_2, weights_conv_2 = new_conv_layer(input = layer_conv_1, num_input_channels = num_filters_1, 
                                             filter_size = filter_size_2, num_filters = num_filters_2, 
                                             use_pooling = True)
 
 # flatten layer
-layer_flat, num_features = flatten_layer(layer_conv2)
+layer_flat, num_features = flatten_layer(layer_conv_2)
 
 # fully-connected layer1
 layer_fc_1 = new_fc_layer(input = layer_flat, num_inputs = num_features, 
@@ -301,16 +381,13 @@ session = tf.Session()
 # initialize variables
 session.run(tf.global_variables_initializer())
 
-train_batch_size = 64
+# initialize parameters
 total_iterations = 0
+num_iterations = 1000
+train_batch_size = 64
+test_batch_size = 256
 
 
-
-
-
-
-
-
-
-
+main(num_iterations = num_iterations, train_batch_size = train_batch_size, 
+     test_batch_size = test_batch_size)
 
