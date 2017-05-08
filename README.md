@@ -4,6 +4,6 @@ This is a repo containing a collection of tutorials in the form of pure codes an
 
 Mainly used for self-practicing.
 
-[tensorflow](https://github.com/txzhao/Tutorials/tree/master/tensorflow)
+[TensorFlow](https://github.com/txzhao/Tutorials/tree/master/tensorflow)
 
-[latex](https://github.com/txzhao/Tutorials/tree/master/latex)
+[Latex](https://github.com/txzhao/Tutorials/tree/master/latex)
