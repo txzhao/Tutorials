@@ -6,4 +6,4 @@
 
 ## Links (Q&A)
 
-[tensorboard](http://stackoverflow.com/questions/33634008/how-to-install-tensorflow)
+[TensorBoard](http://stackoverflow.com/questions/33634008/how-to-install-tensorflow)
