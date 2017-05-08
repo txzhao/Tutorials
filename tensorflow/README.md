@@ -1,4 +1,4 @@
-# Tutorial for tensorflow
+# Tutorial for Tensorflow
 ## Reference
 [Original tutorial](https://github.com/Hvass-Labs/TensorFlow-Tutorials)
 
