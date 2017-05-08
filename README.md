@@ -6,4 +6,4 @@ Mainly used for self-practicing.
 
 [TensorFlow](https://github.com/txzhao/Tutorials/tree/master/tensorflow)
 
-[Latex](https://github.com/txzhao/Tutorials/tree/master/latex)
+[LaTeX](https://github.com/txzhao/Tutorials/tree/master/latex)
