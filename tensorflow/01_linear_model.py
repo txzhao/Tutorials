@@ -167,7 +167,7 @@ data.test.cls = np.array([label.argmax() for label in data.test.labels])
 
 # obtain data dimensions
 img_size_flat = np.shape(data.train.images)[1]      # image size in the form of a 1d vector
-img_size = np.sqrt(img_size_flat)                   # image size in each dimension
+img_size = int(np.sqrt(img_size_flat))              # image size in each dimension
 img_shape = (img_size, img_size)                    # tuple with height and width of images
 num_classes = np.shape(data.test.labels)[1]         # number of classes
 
