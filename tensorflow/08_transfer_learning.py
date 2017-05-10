@@ -3,7 +3,7 @@
 """
 Created on Tue May  9 14:52:16 2017
 
-@author: MMGF2
+@author: txzhao
 """
 
 import matplotlib.pyplot as plt
