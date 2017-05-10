@@ -22,6 +22,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.metrics import confusion_matrix
 
+
 # ================  define function  ================
 def plot_images(images, cls_true, cls_pred = None, smooth = True):
 	assert len(images) == len(cls_true)
