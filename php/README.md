@@ -1,3 +1,4 @@
 # Tutorial for PHP
 
-## Contents
+## References
+[PHP manual](http://php.net/manual/en/index.php)
