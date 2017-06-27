@@ -1,5 +1,5 @@
 <?php
-	/*class file: contains directory reading and extension filtering. */
+	/* class file: contains directory reading and extension filtering. */
 	
     	class DirectoryFilter
     	{
