@@ -1,4 +1,6 @@
 <?php
+	
+	
     class DirectoryFilter
     {
         public function filter($args)
