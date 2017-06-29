@@ -1,4 +1,7 @@
 <?php
+/* Write a program that takes an array of filepaths as arguments, filtering out files that do not exist 
+and mapping existing files to SplFileObject's. Finally output the basename of the files, each on a new line. */
+
 function createSplFileObject($f_name)
 {
 	return new SplFileInfo($f_name);;
