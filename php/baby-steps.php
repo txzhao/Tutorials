@@ -7,7 +7,7 @@ and prints the sum of those numbers to the console (stdout). */
 	
 $sum = 0;
 $iter = 0;
-foreach ($argv as &$value) {
+foreach ($argv as $value) {
 	if ($iter != 0) {
 		$sum += $value;
 	}
