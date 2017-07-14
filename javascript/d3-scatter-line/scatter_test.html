@@ -123,13 +123,13 @@ d3.csv(filename + ".csv", function(error, data) {
 });
 
 
-// moving average line
+// moving-average line
 d3.csv(filename + "_maverage.csv", function(error, data) {
   if (error) throw error;
 
   data.forEach(function(d) {
-    d.Episodes = +d.Episodes;
-    d["Averaged reward"] = +d["Averaged reward"];
+     d.Episodes = +d.Episodes;
+     d["Averaged reward"] = +d["Averaged reward"];
   });
 
   valueline = d3.line()
@@ -147,17 +147,17 @@ d3.csv(filename + "_maverage.csv", function(error, data) {
 
 // checkbox activity
 d3.selectAll("[name=mode]").on("change", function(){
-	var selected = this.value;
-	var opacity = this.checked ? 1 : 0;
+    var selected = this.value;
+    var opacity = this.checked ? 1 : 0;
 
-	if (selected == "scatter") {
-		svg.selectAll(".dot")
-			.style("opacity", opacity);
-	}
-	else {
-		svg.selectAll(".line")
-			.style("opacity", opacity);
-	}
+    if (selected == "scatter") {
+	svg.selectAll(".dot")
+	   .style("opacity", opacity);
+    }
+    else {
+	svg.selectAll(".line")
+	   .style("opacity", opacity);
+    }
 	
 });
 
@@ -166,13 +166,13 @@ d3.selectAll("[name=mode]").on("change", function(){
 function baseName(str)
 {
    var base = new String(str).substring(str.lastIndexOf('/') + 1); 
-    if(base.lastIndexOf(".") != -1)       
+   if(base.lastIndexOf(".") != -1)       
         base = base.substring(0, base.lastIndexOf("."));
    return base;
 };
 
 function zoomed() {
-	var new_yScale = d3.event.transform.rescaleY(y);
+    var new_yScale = d3.event.transform.rescaleY(y);
     var new_xScale = d3.event.transform.rescaleX(x);
 
     // scatter points zooming
@@ -193,15 +193,15 @@ function transformReset() {
 };
 
 function reset_zoomed() {
-	if (d3.event.transform.k === 1) {
-		d3.event.transform.x = 0;
-		d3.event.transform.y = 0;
-	}
+    if (d3.event.transform.k === 1) {
+	d3.event.transform.x = 0;
+	d3.event.transform.y = 0;
+    }
 
-	var reset_y = d3.event.transform.rescaleY(y);
+    var reset_y = d3.event.transform.rescaleY(y);
     var reset_x = d3.event.transform.rescaleX(x);
 
-	// scatter points zooming
+    // scatter points zooming
     points.attr("cy", function(d){ return reset_y(d.Reward);});
     points.attr("cx", function(d){ return reset_x(d.Episodes);});
 
