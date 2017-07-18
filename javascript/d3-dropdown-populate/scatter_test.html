@@ -34,11 +34,6 @@ body {
   		<option value="moving_avg">moving average</option>
   	</select>
   	<select id="runs"></select>
-  	<!-- <select class="dp_select" id="runs">
-  		<option value="run_1" selected="selected">1st run</option>
-  		<option value="run_2">2nd run</option>
-  		<option value="average">average</option>
-  	</select> -->
 </form>
 
 <body>
@@ -168,25 +163,25 @@ d3.csv(filename + ".csv", function(error, data) {
       		.style("opacity", dot_opacity[i - 1]);
   	}
   	
-   	mean_points = svg.selectAll(".dots")
-       	.data(data)
-       	.enter().append("circle")
-       	.attr("class", "m_dot")
-       	.attr("r", 2.5)
-       	.attr('clip-path', 'url(#clip-axis)')
-       	.attr("cx", function(d) { return x(d.Episodes); })
-       	.attr("cy", function(d) { return y(d.mean); })
-       	.style("fill", function(d) { return "steelblue"; })
-       	.style("opacity", mdot_opacity);
+  mean_points = svg.selectAll(".dots")
+    .data(data)
+    .enter().append("circle")
+    .attr("class", "m_dot")
+    .attr("r", 2.5)
+    .attr('clip-path', 'url(#clip-axis)')
+    .attr("cx", function(d) { return x(d.Episodes); })
+    .attr("cy", function(d) { return y(d.mean); })
+    .style("fill", function(d) { return "steelblue"; })
+    .style("opacity", mdot_opacity);
 
 	std_area_s = svg.append("path")
-    	.datum(data)
-    	.attr("class", "area")
-    	.attr('clip-path', 'url(#clip-axis)')
-    	.attr("d", area(data))
-    	.style("fill", "green")
-    	.style("fill-opacity", 0.3)
-   	 	.style("opacity", area_s_opacity);
+    .datum(data)
+    .attr("class", "area")
+    .attr('clip-path', 'url(#clip-axis)')
+    .attr("d", area(data))
+    .style("fill", "green")
+    .style("fill-opacity", 0.3)
+   	.style("opacity", area_s_opacity);
 
 });
 
@@ -253,78 +248,47 @@ d3.selectAll("select").on("change", function(){
 	var run_selected = d3.select("#runs").property("value");
 	//var opacity = this.checked ? 1 : 0;
 
-	if (run_selected == "run_1") {
-		if (fea_selected == "scatter_plot") {
-			dot1_opacity = 1;
-			dot2_opacity = 0;
-			line1_opacity = 0;
-			line2_opacity = 0;
-			mline_opacity = 0;
-			mdot_opacity = 0;
-			area_s_opacity = 0;
-			area_l_opacity = 0;
-		}
-		else {
-			dot1_opacity = 0;
-			dot2_opacity = 0;
-			line1_opacity = 1;
-			line2_opacity = 0;
-			mline_opacity = 0;
-			mdot_opacity = 0;
-			area_s_opacity = 0;
-			area_l_opacity = 0;
-		}
-	}
-	else if (run_selected == "run_2") {
-		if (fea_selected == "scatter_plot") {
-			dot1_opacity = 0;
-			dot2_opacity = 1;
-			line1_opacity = 0;
-			line2_opacity = 0;
-			mline_opacity = 0;
-			mdot_opacity = 0;
-			area_s_opacity = 0;
-			area_l_opacity = 0;
-		}
-		else {
-			dot1_opacity = 0;
-			dot2_opacity = 0;
-			line1_opacity = 0;
-			line2_opacity = 1;
-			mline_opacity = 0;
-			mdot_opacity = 0;
-			area_s_opacity = 0;
-			area_l_opacity = 0;
-		}
-	}
-	else {
-		if (fea_selected == "scatter_plot") {
-			dot1_opacity = 0;
-			dot2_opacity = 0;
-			line1_opacity = 0;
-			line2_opacity = 0;
-			mline_opacity = 0;
-			mdot_opacity = 1;
-			area_s_opacity = 0.4;
-			area_l_opacity = 0;
-		}
-		else {
-			dot1_opacity = 0;
-			dot2_opacity = 0;
-			line1_opacity = 0;
-			line2_opacity = 0;
-			mline_opacity = 1;
-			mdot_opacity = 0;
-			area_s_opacity = 0;
-			area_l_opacity = 0.4;
-		}
-	}
+  dot_opacity = Array.apply(null, Array(num_col - 4)).map(Number.prototype.valueOf, 0);
+  line_opacity = Array.apply(null, Array(num_col - 4)).map(Number.prototype.valueOf, 0);
+  
+  if (fea_selected == "scatter_plot") {
+    if (run_selected == "average") {
+      mline_opacity = 0;
+      mdot_opacity = 1;
+      area_s_opacity = 0.4;
+      area_l_opacity = 0;
+    }
+    else {
+      var num_run = Number(run_selected.replace("run_", ""));
+      dot_opacity[num_run - 1] = 1;
+      mline_opacity = 0;
+      mdot_opacity = 0;
+      area_s_opacity = 0;
+      area_l_opacity = 0;
+    }     
+  }
+  else {
+    if (run_selected == "average") {
+      mline_opacity = 1;
+      mdot_opacity = 0;
+      area_s_opacity = 0;
+      area_l_opacity = 0.4;
+    }
+    else {
+      var num_run = Number(run_selected.replace("run_", ""));
+      line_opacity[num_run - 1] = 1;
+      mline_opacity = 0;
+      mdot_opacity = 0;
+      area_s_opacity = 0;
+      area_l_opacity = 0;
+    }     
+  }
 
-	svg.selectAll(".dot1").style("opacity", dot1_opacity);
-	svg.selectAll(".dot2").style("opacity", dot2_opacity);
-	mean_points.style("opacity", mdot_opacity);
-	svg.selectAll("#line1").style("opacity", line1_opacity);
-	svg.selectAll("#line2").style("opacity", line2_opacity);
+  for (i = 1; i < num_col - 3; i++) {
+    svg.selectAll(".dot" + i).style("opacity", dot_opacity[i - 1]);
+    svg.selectAll("#line" + i).style("opacity", line_opacity[i - 1]);
+  }
+  mean_points.style("opacity", mdot_opacity);
 	mean_line.style("opacity", mline_opacity);
 	std_area_s.style("opacity", area_s_opacity);
 	std_area_l.style("opacity", area_l_opacity);
