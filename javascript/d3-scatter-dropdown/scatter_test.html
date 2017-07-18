@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 12px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.dot1 {
+  stroke: none;
+  fill: steelblue;
+}
+
+.dot2 {
+  stroke: none;
+  fill: red;
+}
+
+.dot3 {
+  stroke: none;
+  fill: black;
+}
+
+.line {
+  fill:none;
+  stroke: steelblue;
+  storke-width: 2px;
+}
+
+}
+
+</style>
+<form>
+	<label>Learning performance: </label>
+  	<select class="dp_select" id="features">
+  		<option value="scatter_plot" selected="selected">scatter plot</option>
+  		<option value="moving_avg">moving average</option>
+  	</select>
+  	<select class="dp_select" id="runs">
+  		<option value="run_1" selected="selected">1st run</option>
+  		<option value="run_2">2nd run</option>
+  		<option value="average">average</option>
+  	</select>
+</form>
+
+<body>
+<script src="http://147.214.168.85/wp-content/plugins/wp-d3/js/d3.v43.min.js"></script>
+<script>
+
+var filename = location.pathname;
+filename = baseName(filename);
+filename = filename.replace("scatter_test", "saved_results");
+//alert(filename);
+
+var dot1_opacity = 1,
+	dot2_opacity = 0,
+	line1_opacity = 0,
+	line2_opacity = 0,
+	mline_opacity = 0,
+	mdot_opacity = 0,
+	area_s_opacity = 0,
+	area_l_opacity = 0;
+
+var margin = {top: 20, right: 20, bottom: 30, left: 40},
+    width = 800 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+var x = d3.scaleLinear()
+    .range([0, width]);
+
+var y = d3.scaleLinear()
+    .range([height, 0]);
+
+var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+var xAxis = d3.axisBottom(x);
+var yAxis = d3.axisLeft(y);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .call(d3.zoom().scaleExtent([1, 10])
+    .translateExtent([[0, 0], [width, height]])
+    .extent([[0, 0], [width, height]])
+    .on("zoom", zoomed))
+    .on("dblclick.zoom", transformReset)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+// scatter plot
+d3.csv(filename + ".csv", function(error, data) {
+  	if (error) throw error;
+
+  	data.forEach(function(d) {
+    	d.Episodes = +d.Episodes;
+    	d["Reward 1"] = +d["Reward 1"];
+    	d["Reward 2"] = +d["Reward 2"];
+    	d.mean = +d.mean;
+    	d.top = +d.top;
+    	d.bottom = +d.bottom;
+  	});
+  
+  	x.domain(d3.extent(data, function(d) { return d.Episodes; })).nice();
+  	//y.domain(d3.extent(data, function(d) { return d.top; })).nice();
+  	//y.domain(d3.extent(data, function(d) { return d.bottom; })).nice();
+  	y.domain([d3.min(data, function(d) {return d.bottom} ), d3.max(data, function(d) {return d.top})]);
+
+  	svg.append("defs").append("clipPath")
+      	.attr("id", "clip-axis")
+      	.append("rect")
+      	.attr("x", x.domain()[0]) 
+      	.attr("y", y.domain()[-1])
+      	.attr("height", height) 
+      	.attr("width", width);
+
+  	gX = svg.append("g")
+      	.attr("class", "axis-x")
+      	.attr("transform", "translate(0," + height + ")")
+      	.call(xAxis);
+
+  	gY = svg.append("g")
+      	.attr("class", "axix-y")
+      	.call(yAxis);
+
+  	svg.append("text")
+      	.attr("class", "axis-label")
+      	.attr("x", width)
+      	.attr("y", height - 6)
+      	.style("text-anchor", "end")
+      	.text("Episodes");
+
+  	svg.append("text")
+      	.attr("class", "axis-label")
+      	.attr("transform", "rotate(-90)")
+      	.attr("y", 6)
+      	.attr("dy", ".71em")
+      	.style("text-anchor", "end")
+      	.text("Reward");
+
+    area = d3.area()
+    	.x(function(d) { return x(d.Episodes); })
+    	.y0(function(d) { return y(d.bottom); })
+    	.y1(function(d) { return y(d.top); });
+
+  	points1 = svg.selectAll(".dot1")
+      	.data(data)
+      	.enter().append("circle")
+      	.attr("class", "dot")
+      	.attr("r", 2.5)
+      	.attr('clip-path', 'url(#clip-axis)')
+      	.attr("cx", function(d) { return x(d.Episodes); })
+      	.attr("cy", function(d) { return y(d["Reward 1"]); })
+      	.style("fill", function(d) { return "steelblue"; })
+      	.style("opacity", dot1_opacity);
+
+  	points2 = svg.selectAll(".dot2")
+      	.data(data)
+      	.enter().append("circle")
+      	.attr("class", "dot")
+      	.attr("r", 2.5)
+      	.attr('clip-path', 'url(#clip-axis)')
+      	.attr("cx", function(d) { return x(d.Episodes); })
+      	.attr("cy", function(d) { return y(d["Reward 2"]); })
+      	.style("fill", function(d) { return "red"; })
+      	.style("opacity", dot2_opacity);
+
+   	mean_points = svg.selectAll(".dot3")
+       	.data(data)
+       	.enter().append("circle")
+       	.attr("class", "dot")
+       	.attr("r", 2.5)
+       	.attr('clip-path', 'url(#clip-axis)')
+       	.attr("cx", function(d) { return x(d.Episodes); })
+       	.attr("cy", function(d) { return y(d.mean); })
+       	.style("fill", function(d) { return "black"; })
+       	.style("opacity", mdot_opacity);
+
+	std_area_s = svg.append("path")
+    	.datum(data)
+    	.attr("class", "area")
+    	.attr('clip-path', 'url(#clip-axis)')
+    	.attr("d", area(data))
+    	.style("fill", "green")
+    	.style("fill-opacity", 0.3)
+   	 	.style("opacity", area_s_opacity);
+
+});
+
+
+// moving average line
+d3.csv(filename + "_maverage.csv", function(error, data) {
+  	if (error) throw error;
+
+  	data.forEach(function(d) {
+    	d.Episodes = +d.Episodes;
+    	d["Reward 1"] = +d["Reward 1"];
+    	d["Reward 2"] = +d["Reward 2"];
+    	d.mean = +d.mean;
+    	d.top = +d.top;
+    	d.bottom = +d.bottom;
+  	});
+
+	valueline1 = d3.line()
+    	.x(function(d) {return x(d.Episodes);})
+    	.y(function(d) {return y(d["Reward 1"]);});
+
+  	valueline2 = d3.line()
+    	.x(function(d) {return x(d.Episodes);})
+    	.y(function(d) {return y(d["Reward 2"]);});
+
+  	meanline = d3.line()
+    	.x(function(d) {return x(d.Episodes);})
+    	.y(function(d) {return y(d.mean);});
+
+    area = d3.area()
+    	.x(function(d) { return x(d.Episodes); })
+    	.y0(function(d) { return y(d.bottom); })
+    	.y1(function(d) { return y(d.top); });
+
+  	line1 = svg.append("path")
+    	.datum(data)
+    	.attr("class", "line")
+    	.attr('clip-path', 'url(#clip-axis)')
+    	.attr("d", valueline1(data))
+    	.style("opacity", line1_opacity);
+
+  	line2 = svg.append("path")
+    	.datum(data)
+    	.attr("class", "line")
+    	.attr('clip-path', 'url(#clip-axis)')
+    	.attr("d", valueline2(data))
+    	.style("stroke", function(d) { return "red"; })
+   	 	.style("opacity", line2_opacity);
+
+   	mean_line = svg.append("path")
+    	.datum(data)
+    	.attr("class", "line")
+    	.attr('clip-path', 'url(#clip-axis)')
+    	.attr("d", meanline(data))
+    	.style("stroke", function(d) { return "black"; })
+   	 	.style("opacity", mline_opacity);
+
+   	std_area_l = svg.append("path")
+    	.datum(data)
+    	.attr("class", "area")
+    	.attr('clip-path', 'url(#clip-axis)')
+    	.attr("d", area(data))
+    	.style("fill", "green")
+    	.style("fill-opacity", 0.3)
+    	.style("opacity", area_l_opacity);
+});
+
+
+// dropdown activity
+d3.selectAll("select").on("change", function(){
+	var fea_selected = d3.select("#features").property("value");
+	var run_selected = d3.select("#runs").property("value");
+	//var opacity = this.checked ? 1 : 0;
+
+	if (run_selected == "run_1") {
+		if (fea_selected == "scatter_plot") {
+			dot1_opacity = 1;
+			dot2_opacity = 0;
+			line1_opacity = 0;
+			line2_opacity = 0;
+			mline_opacity = 0;
+			mdot_opacity = 0;
+			area_s_opacity = 0;
+			area_l_opacity = 0;
+		}
+		else {
+			dot1_opacity = 0;
+			dot2_opacity = 0;
+			line1_opacity = 1;
+			line2_opacity = 0;
+			mline_opacity = 0;
+			mdot_opacity = 0;
+			area_s_opacity = 0;
+			area_l_opacity = 0;
+		}
+	}
+	else if (run_selected == "run_2") {
+		if (fea_selected == "scatter_plot") {
+			dot1_opacity = 0;
+			dot2_opacity = 1;
+			line1_opacity = 0;
+			line2_opacity = 0;
+			mline_opacity = 0;
+			mdot_opacity = 0;
+			area_s_opacity = 0;
+			area_l_opacity = 0;
+		}
+		else {
+			dot1_opacity = 0;
+			dot2_opacity = 0;
+			line1_opacity = 0;
+			line2_opacity = 1;
+			mline_opacity = 0;
+			mdot_opacity = 0;
+			area_s_opacity = 0;
+			area_l_opacity = 0;
+		}
+	}
+	else {
+		if (fea_selected == "scatter_plot") {
+			dot1_opacity = 0;
+			dot2_opacity = 0;
+			line1_opacity = 0;
+			line2_opacity = 0;
+			mline_opacity = 0;
+			mdot_opacity = 1;
+			area_s_opacity = 0.4;
+			area_l_opacity = 0;
+		}
+		else {
+			dot1_opacity = 0;
+			dot2_opacity = 0;
+			line1_opacity = 0;
+			line2_opacity = 0;
+			mline_opacity = 1;
+			mdot_opacity = 0;
+			area_s_opacity = 0;
+			area_l_opacity = 0.4;
+		}
+	}
+
+	points1.style("opacity", dot1_opacity);
+	points2.style("opacity", dot2_opacity);
+	mean_points.style("opacity", mdot_opacity);
+	line1.style("opacity", line1_opacity);
+	line2.style("opacity", line2_opacity);
+	mean_line.style("opacity", mline_opacity);
+	std_area_s.style("opacity", area_s_opacity);
+	std_area_l.style("opacity", area_l_opacity);
+
+});
+
+
+// functions
+function baseName(str)
+{
+   var base = new String(str).substring(str.lastIndexOf('/') + 1); 
+    if(base.lastIndexOf(".") != -1)       
+        base = base.substring(0, base.lastIndexOf("."));
+   return base;
+};
+
+function zoomed() {
+	var new_yScale = d3.event.transform.rescaleY(y);
+    var new_xScale = d3.event.transform.rescaleX(x);
+
+    // scatter points zooming
+    points1.attr("cx", function(d){ return new_xScale(d.Episodes);});
+    points1.attr("cy", function(d){ return new_yScale(d["Reward 1"]);});
+    points2.attr("cx", function(d){ return new_xScale(d.Episodes);});
+    points2.attr("cy", function(d){ return new_yScale(d["Reward 2"]);});
+    mean_points.attr("cx", function(d){ return new_xScale(d.Episodes);});
+    mean_points.attr("cy", function(d){ return new_yScale(d.mean);});
+    
+    // axis zooming
+    gX.transition().duration(50).call(xAxis.scale(d3.event.transform.rescaleX(x)));
+    gY.transition().duration(50).call(yAxis.scale(d3.event.transform.rescaleY(y)));
+
+    // line zooming
+    line1.attr("d", valueline1.x(function(d) {return new_xScale(d.Episodes);}));
+    line1.attr("d", valueline1.y(function(d) {return new_yScale(d["Reward 1"]);}));
+    line2.attr("d", valueline2.x(function(d) {return new_xScale(d.Episodes);}));
+    line2.attr("d", valueline2.y(function(d) {return new_yScale(d["Reward 2"]);}));
+    mean_line.attr("d", meanline.x(function(d) {return new_xScale(d.Episodes);}));
+    mean_line.attr("d", meanline.y(function(d) {return new_yScale(d.mean);}));
+};
+
+function transformReset() {
+    svg.call(d3.zoom().on("zoom", reset_zoomed).transform, d3.zoomIdentity);
+};
+
+function reset_zoomed() {
+	if (d3.event.transform.k === 1) {
+		d3.event.transform.x = 0;
+		d3.event.transform.y = 0;
+	}
+
+	var reset_y = d3.event.transform.rescaleY(y);
+    var reset_x = d3.event.transform.rescaleX(x);
+
+	// scatter points zooming
+    points1.attr("cx", function(d){ return reset_x(d.Episodes);});
+    points1.attr("cy", function(d){ return reset_y(d["Reward 1"]);});
+    points2.attr("cx", function(d){ return reset_x(d.Episodes);});
+    points2.attr("cy", function(d){ return reset_y(d["Reward 2"]);});
+    mean_points.attr("cx", function(d){ return reset_x(d.Episodes);});
+    mean_points.attr("cy", function(d){ return reset_y(d.mean);});
+
+    // axis zooming
+    gX.transition().duration(50).call(xAxis.scale(d3.event.transform.rescaleX(x)));
+    gY.transition().duration(50).call(yAxis.scale(d3.event.transform.rescaleY(y)));
+
+    // line zooming
+    line1.attr("d", valueline1.x(function(d) {return reset_x(d.Episodes);}));
+    line1.attr("d", valueline1.y(function(d) {return reset_y(d["Reward 1"]);}));
+    line2.attr("d", valueline2.x(function(d) {return reset_x(d.Episodes);}));
+    line2.attr("d", valueline2.y(function(d) {return reset_y(d["Reward 2"]);}));
+    mean_line.attr("d", meanline.x(function(d) {return reset_x(d.Episodes);}));
+    mean_line.attr("d", meanline.y(function(d) {return reset_y(d.mean);}));
+};
+
+</script>
+
+
