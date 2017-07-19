@@ -291,7 +291,7 @@ d3.selectAll("select").on("change", function(){
 	mean_line.style("opacity", mline_opacity);
 	std_area_s.style("opacity", area_s_opacity);
 	std_area_l.style("opacity", area_l_opacity);
-
+	transformReset();
 });
 
 
@@ -337,7 +337,7 @@ function zoomed() {
 };
 
 function transformReset() {
-    svg.call(d3.zoom().on("zoom", reset_zoomed).transform, d3.zoomIdentity);
+	svg.call(d3.zoom().on("zoom", reset_zoomed).transform, d3.zoomIdentity);
 };
 
 function reset_zoomed() {
