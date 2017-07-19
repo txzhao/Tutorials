@@ -85,7 +85,7 @@ d3.csv(filename + ".csv", function(error, data) {
 
   	// create dropdown and populate options
   	var columns = Object.keys(data[0]);
-  	num_col = columns.length;
+  	num_col = columns.length - 1;
 
   	var run_names = [];
   	for (i = 1; i < num_col - 3; i++) {
@@ -94,9 +94,9 @@ d3.csv(filename + ".csv", function(error, data) {
   	run_names.push("Average");
 
     var options = d3.select("#runs").selectAll("option")
-               .data(run_names).enter()
-               .append("option").text(function(d) { return d; })
-               .attr("value", function(d) { return d.replace("Run ", "run_"); });
+    	.data(run_names).enter()
+    	.append("option").text(function(d) { return d; })
+    	.attr("value", function(d) { return d.replace("Run ", "run_"); });
 
 
   	data.forEach(function(d) {
@@ -163,25 +163,25 @@ d3.csv(filename + ".csv", function(error, data) {
       		.style("opacity", dot_opacity[i - 1]);
   	}
   	
-  mean_points = svg.selectAll(".dots")
-    .data(data)
-    .enter().append("circle")
-    .attr("class", "m_dot")
-    .attr("r", 2.5)
-    .attr('clip-path', 'url(#clip-axis)')
-    .attr("cx", function(d) { return x(d.Episodes); })
-    .attr("cy", function(d) { return y(d.mean); })
-    .style("fill", function(d) { return "steelblue"; })
-    .style("opacity", mdot_opacity);
+  	mean_points = svg.selectAll(".dots")
+    	.data(data)
+    	.enter().append("circle")
+    	.attr("class", "m_dot")
+    	.attr("r", 2.5)
+    	.attr('clip-path', 'url(#clip-axis)')
+    	.attr("cx", function(d) { return x(d.Episodes); })
+    	.attr("cy", function(d) { return y(d.mean); })
+    	.style("fill", function(d) { return "steelblue"; })
+    	.style("opacity", mdot_opacity);
 
 	std_area_s = svg.append("path")
-    .datum(data)
-    .attr("class", "area")
-    .attr('clip-path', 'url(#clip-axis)')
-    .attr("d", area(data))
-    .style("fill", "green")
-    .style("fill-opacity", 0.3)
-   	.style("opacity", area_s_opacity);
+    	.datum(data)
+    	.attr("class", "area")
+    	.attr('clip-path', 'url(#clip-axis)')
+    	.attr("d", area(data))
+    	.style("fill", "green")
+    	.style("fill-opacity", 0.3)
+   		.style("opacity", area_s_opacity);
 
 });
 
@@ -246,49 +246,48 @@ d3.csv(filename + "_maverage.csv", function(error, data) {
 d3.selectAll("select").on("change", function(){
 	var fea_selected = d3.select("#features").property("value");
 	var run_selected = d3.select("#runs").property("value");
-	//var opacity = this.checked ? 1 : 0;
 
-  dot_opacity = Array.apply(null, Array(num_col - 4)).map(Number.prototype.valueOf, 0);
-  line_opacity = Array.apply(null, Array(num_col - 4)).map(Number.prototype.valueOf, 0);
+  	dot_opacity = Array.apply(null, Array(num_col - 4)).map(Number.prototype.valueOf, 0);
+  	line_opacity = Array.apply(null, Array(num_col - 4)).map(Number.prototype.valueOf, 0);
   
-  if (fea_selected == "scatter_plot") {
-    if (run_selected == "average") {
-      mline_opacity = 0;
-      mdot_opacity = 1;
-      area_s_opacity = 0.4;
-      area_l_opacity = 0;
-    }
-    else {
-      var num_run = Number(run_selected.replace("run_", ""));
-      dot_opacity[num_run - 1] = 1;
-      mline_opacity = 0;
-      mdot_opacity = 0;
-      area_s_opacity = 0;
-      area_l_opacity = 0;
-    }     
-  }
-  else {
-    if (run_selected == "average") {
-      mline_opacity = 1;
-      mdot_opacity = 0;
-      area_s_opacity = 0;
-      area_l_opacity = 0.4;
-    }
-    else {
-      var num_run = Number(run_selected.replace("run_", ""));
-      line_opacity[num_run - 1] = 1;
-      mline_opacity = 0;
-      mdot_opacity = 0;
-      area_s_opacity = 0;
-      area_l_opacity = 0;
-    }     
-  }
+  	if (fea_selected == "scatter_plot") {
+    	if (run_selected == "Average") {
+      		mline_opacity = 0;
+      		mdot_opacity = 1;
+      		area_s_opacity = 0.5;
+      		area_l_opacity = 0;
+    	}
+    	else {
+      		var num_run = Number(run_selected.replace("run_", ""));
+      		dot_opacity[num_run - 1] = 1;
+      		mline_opacity = 0;
+      		mdot_opacity = 0;
+      		area_s_opacity = 0;
+      		area_l_opacity = 0;
+    	}     
+  	}
+  	else {
+    	if (run_selected == "Average") {
+      		mline_opacity = 1;
+      		mdot_opacity = 0;
+      		area_s_opacity = 0;
+      		area_l_opacity = 0.5;
+    	}
+    	else {
+      		var num_run = Number(run_selected.replace("run_", ""));
+      		line_opacity[num_run - 1] = 1;
+      		mline_opacity = 0;
+      		mdot_opacity = 0;
+      		area_s_opacity = 0;
+      		area_l_opacity = 0;
+    	}     
+  	}
 
-  for (i = 1; i < num_col - 3; i++) {
-    svg.selectAll(".dot" + i).style("opacity", dot_opacity[i - 1]);
-    svg.selectAll("#line" + i).style("opacity", line_opacity[i - 1]);
-  }
-  mean_points.style("opacity", mdot_opacity);
+  	for (i = 1; i < num_col - 3; i++) {
+    	svg.selectAll(".dot" + i).style("opacity", dot_opacity[i - 1]);
+    	svg.selectAll("#line" + i).style("opacity", line_opacity[i - 1]);
+  	}
+  	mean_points.style("opacity", mdot_opacity);
 	mean_line.style("opacity", mline_opacity);
 	std_area_s.style("opacity", area_s_opacity);
 	std_area_l.style("opacity", area_l_opacity);
@@ -302,7 +301,7 @@ function baseName(str)
    var base = new String(str).substring(str.lastIndexOf('/') + 1); 
     if(base.lastIndexOf(".") != -1)       
         base = base.substring(0, base.lastIndexOf("."));
-   return base;
+    return base;
 };
 
 function zoomed() {
