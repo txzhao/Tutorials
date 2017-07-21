@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 12px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.grid line {
+  stroke: lightgrey;
+  stroke-opacity: 0.5;
+  shape-rendering: crispEdges;
+}
+
+.grid path {
+  stroke-width: 0;
+}
+
+.dots {
+  stroke: none;
+  fill: steelblue;
+}
+
+.line {
+  fill:none;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+
+.dropdown-check-list {
+  display: inline-block;
+}
+
+.dropdown-check-list .anchor {
+  position: relative;
+  cursor: pointer;
+  display: inline-block;
+  padding: 5px 50px 5px 10px;
+  border: 1px solid #ccc;
+}
+
+.dropdown-check-list .anchor:after {
+  position: absolute;
+  content: "";
+  border-left: 2px solid black;
+  border-top: 2px solid black;
+  padding: 5px;
+  right: 10px;
+  top: 20%;
+  -moz-transform: rotate(-135deg);
+  -ms-transform: rotate(-135deg);
+  -o-transform: rotate(-135deg);
+  -webkit-transform: rotate(-135deg);
+  transform: rotate(-135deg);
+}
+
+.dropdown-check-list .anchor:active:after {
+  right: 8px;
+  top: 21%;
+}
+
+.dropdown-check-list ul.items {
+  padding: 2px;
+  display: none;
+  margin: 0;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+
+</style>
+
+<label>Learning performance: </label>
+
+<div id="list2" class="dropdown-check-list" tabindex="100">
+	<span class="anchor">Select features</span>
+    <ul id="items2" class="items">
+    	<label><input type="checkbox" id="moving_avg" onclick="filter(this);"><text>Moving average </text></label>
+        <label><input type="checkbox" id="std_deviation" onclick="filter(this);"><text>Standard deviation </text></label>
+    </ul>
+</div>
+
+<div id="list1" class="dropdown-check-list" tabindex="100">
+	<span class="anchor">Select results</span>
+    <ul id="items" class="items"></ul>
+</div>
+
+<body>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+// expand dropdown list
+var checkList = document.getElementById('list1');
+var items = document.getElementById('items');
+checkList.getElementsByClassName('anchor')[0].onclick = function (evt) {
+	if (items.classList.contains('visible')) {
+    items.classList.remove('visible');
+    items.style.display = "none";
+	}
+  else {
+    items.classList.add('visible');
+    items.style.display = "block";
+  }
+}
+items.onblur = function(evt) {
+  items.classList.remove('visible');
+}
+
+var checkList2 = document.getElementById('list2');
+var items2 = document.getElementById('items2');
+checkList2.getElementsByClassName('anchor')[0].onclick = function (evt) {
+	if (items2.classList.contains('visible')) {
+		items2.classList.remove('visible');
+    items2.style.display = "none";
+	}
+  else {
+    items2.classList.add('visible');
+    items2.style.display = "block";
+  }
+}
+items2.onblur = function(evt) {
+  items2.classList.remove('visible');
+}
+
+
+// basic setup
+var filename = location.pathname;
+filename = baseName(filename);
+filename = filename.replace("results_compare", "saved_results");
+var runname = filename.replace("saved_results", "run_names");
+
+var xmin_dict = {},
+	xmax_dict = {},
+	ymin_dict = {},
+	ymax_dict = {},
+	stroke_dict = {};
+
+var line_opacity = 0,
+	area_opacity = 0;
+
+var margin = {top: 20, right: 20, bottom: 30, left: 40},
+  width = 800 - margin.left - margin.right,
+  height = 500 - margin.top - margin.bottom;
+
+var x = d3.scaleLinear()
+	.domain([0, 1000])
+  .range([0, width]);
+
+var y = d3.scaleLinear()
+	.domain([-100, 100])
+  .range([height, 0]);
+
+var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+var xAxis = d3.axisBottom(x);
+var yAxis = d3.axisLeft(y);
+var xGrid = d3.axisBottom(x).ticks(10).tickSize(-height).tickFormat("");
+var yGrid = d3.axisLeft(y).ticks(10).tickSize(-width).tickFormat("");
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .call(d3.zoom().scaleExtent([1, 10])
+    .translateExtent([[0, 0], [width, height]])
+    .extent([[0, 0], [width, height]])
+    .on("zoom", zoomed))
+    .on("dblclick.zoom", transformReset)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+gX = svg.append("g")
+  .attr("class", "axis-x")
+  .attr("transform", "translate(0," + height + ")")
+  .call(xAxis);
+
+gY = svg.append("g")
+  .attr("class", "axix-y")
+  .call(yAxis);
+
+svg.append("text")
+  .attr("class", "axis-label")
+  .attr("x", width)
+  .attr("y", height - 6)
+  .style("text-anchor", "end")
+  .text("Episodes");
+
+svg.append("text")
+  .attr("class", "axis-label")
+  .attr("transform", "rotate(-90)")
+  .attr("y", 6)
+  .attr("dy", ".71em")
+  .style("text-anchor", "end")
+  .text("Reward");
+
+glX = svg.append("g")			
+  .attr("class", "grid")
+  .attr("transform", "translate(0," + height + ")")
+  .call(xGrid);
+
+glY = svg.append("g")			
+  .attr("class", "grid")
+  .call(yGrid);
+
+area = d3.area()
+  .x(function(d) { return x(d.Episodes); })
+  .y0(function(d) { return y(d.bottom); })
+  .y1(function(d) { return y(d.top); });
+
+meanline = d3.line()
+  .x(function(d) {return x(d.Episodes);})
+  .y(function(d) {return y(d.mean);});
+
+d3.csv(runname + ".csv", function(error, data) {
+  if (error) throw error;
+
+  d3.select("#items").selectAll("input")
+    .data(data).enter()
+    .append("label").attr('class', 'checklabel')
+    .append("input").attr('type','checkbox').attr('class', 'mode')
+    .attr("onclick", "update(this);")
+    .attr("id", function(d) { return d["Run name"]; });
+
+  d3.selectAll(".checklabel")
+    .data(data)
+    .append("text")
+    .text(function(d) { return d["Run name"]; });
+
+});
+
+
+// functions
+function baseName(str)
+{
+  var base = new String(str).substring(str.lastIndexOf('/') + 1); 
+  if(base.lastIndexOf(".") != -1)
+    base = base.substring(0, base.lastIndexOf("."));
+  return base;
+};
+
+function zoomed() {
+	var new_yScale = d3.event.transform.rescaleY(y);
+  var new_xScale = d3.event.transform.rescaleX(x);
+  
+  d3.selectAll(".line").attr("d", meanline.x(function(d) {return new_xScale(d.Episodes);}));
+  d3.selectAll(".line").attr("d", meanline.y(function(d) {return new_yScale(d.mean);}));
+
+  // area zooming
+  d3.selectAll(".area").attr("d", area.x(function(d) {return new_xScale(d.Episodes);}));
+  d3.selectAll(".area").attr("d", area.y0(function(d) {return new_yScale(d.bottom);}));
+  d3.selectAll(".area").attr("d", area.y1(function(d) {return new_yScale(d.top);}));
+    
+  // axis zooming
+  gX.transition().duration(50).call(xAxis.scale(d3.event.transform.rescaleX(x)));
+  gY.transition().duration(50).call(yAxis.scale(d3.event.transform.rescaleY(y)));
+
+  // grid line zooming
+  glX.transition().duration(50).call(xGrid.scale(d3.event.transform.rescaleX(x)));
+  glY.transition().duration(50).call(yGrid.scale(d3.event.transform.rescaleY(y)));
+    
+};
+
+function transformReset() {
+	svg.call(d3.zoom().on("zoom", reset_zoomed).transform, d3.zoomIdentity);
+};
+
+function reset_zoomed() {
+	if (d3.event.transform.k === 1) {
+    d3.event.transform.x = 0;
+		d3.event.transform.y = 0;
+	}
+
+  var reset_y = d3.event.transform.rescaleY(y);
+  var reset_x = d3.event.transform.rescaleX(x);
+
+  d3.selectAll(".line").attr("d", meanline.x(function(d) {return reset_x(d.Episodes);}));
+  d3.selectAll(".line").attr("d", meanline.y(function(d) {return reset_y(d.mean);}));
+
+  // area zooming
+  d3.selectAll(".area").attr("d", area.x(function(d) {return reset_x(d.Episodes);}));
+  d3.selectAll(".area").attr("d", area.y0(function(d) {return reset_y(d.bottom);}));
+  d3.selectAll(".area").attr("d", area.y1(function(d) {return reset_y(d.top);}));
+
+  // axis zooming
+  gX.transition().duration(50).call(xAxis.scale(d3.event.transform.rescaleX(x)));
+  gY.transition().duration(50).call(yAxis.scale(d3.event.transform.rescaleY(y)));
+
+  // grid line zooming
+  glX.transition().duration(50).call(xGrid.scale(d3.event.transform.rescaleX(x)));
+  glY.transition().duration(50).call(yGrid.scale(d3.event.transform.rescaleY(y)));
+
+};
+
+function update(ele)
+{
+  var run_state = ele.checked;
+  var run_id = ele.id;
+
+	if (run_state) {
+    d3.csv(filename + "_" + run_id + ".csv", function(error, data) {
+      if (error) throw error;
+
+  		data.forEach(function(d) {
+    		d.Episodes = +d.Episodes;
+    		d.mean = +d.mean;
+    		d.top = +d.top;
+    		d.bottom = +d.bottom;
+  		});
+
+  		ymin_dict[run_id] = d3.min(data, function(d) {return d.bottom} );
+  		ymax_dict[run_id] = d3.max(data, function(d) {return d.top});
+			xmin_dict[run_id] = d3.min(data, function(d) {return d.Episodes} );
+  		xmax_dict[run_id] = d3.max(data, function(d) {return d.Episodes});
+
+  		if (!(run_id in stroke_dict)) {
+  		  stroke_dict[run_id] = getRandomColor();
+  		}
+  			
+  		var ymax_key = Object.keys(ymax_dict).reduce(function(a, b){ return ymax_dict[a] > ymax_dict[b] ? a : b });
+  		var ymin_key = Object.keys(ymin_dict).reduce(function(a, b){ return ymin_dict[a] < ymin_dict[b] ? a : b });
+  		var xmax_key = Object.keys(xmax_dict).reduce(function(a, b){ return xmax_dict[a] > xmax_dict[b] ? a : b });
+  		var xmin_key = Object.keys(xmin_dict).reduce(function(a, b){ return xmin_dict[a] < xmin_dict[b] ? a : b });
+
+  		new_x = x.domain([xmin_dict[xmin_key], xmax_dict[xmax_key]]);
+  		new_y = y.domain([ymin_dict[ymin_key], ymax_dict[ymax_key]]);
+
+  		svg.append("defs").append("clipPath")
+        .attr("id", "clip-axis")
+      	.append("rect")
+      	.attr("x", x.domain()[0]) 
+      	.attr("y", y.domain()[-1])
+      	.attr("height", height) 
+      	.attr("width", width);
+
+    	svg.append("path")
+     		.datum(data)
+     		.attr("class", "line")
+     		.attr("id", "line" + run_id)
+     		.attr('clip-path', 'url(#clip-axis)')
+     		.attr("d", meanline(data))
+     		.style("stroke", stroke_dict[run_id])
+    	 	.style("opacity", line_opacity);
+
+			svg.append("path")
+    		.datum(data)
+    		.attr("class", "area")
+    		.attr("id", "area" + run_id)
+    		.attr('clip-path', 'url(#clip-axis)')
+    		.attr("d", area(data))
+    		.style("fill", stroke_dict[run_id])
+    		.style("fill-opacity", 0.3)
+   			.style("opacity", area_opacity);
+
+  		gX.transition().duration(750).call(xAxis);
+  		gY.transition().duration(750).call(yAxis);
+  		glX.transition().duration(750).call(xGrid);
+  		glY.transition().duration(750).call(yGrid);
+  		d3.selectAll(".line").attr("d", meanline.x(function(d) {return new_x(d.Episodes);}));
+    	d3.selectAll(".line").attr("d", meanline.y(function(d) {return new_y(d.mean);}));
+    	d3.selectAll(".area").attr("d", area.x(function(d) {return new_x(d.Episodes);}));
+    	d3.selectAll(".area").attr("d", area.y0(function(d) {return new_y(d.bottom);}));
+    	d3.selectAll(".area").attr("d", area.y1(function(d) {return new_y(d.top);}));
+
+    });
+  }
+	else {
+    d3.select("#area" + run_id).remove();
+		d3.select("#line" + run_id).remove();
+		delete xmin_dict[run_id];
+		delete xmax_dict[run_id];
+		delete ymin_dict[run_id];
+		delete ymax_dict[run_id];
+
+		if (Object.keys(xmin_dict).length > 0) {
+		  var ymax_key = Object.keys(ymax_dict).reduce(function(a, b){ return ymax_dict[a] > ymax_dict[b] ? a : b });
+  		var ymin_key = Object.keys(ymin_dict).reduce(function(a, b){ return ymin_dict[a] < ymin_dict[b] ? a : b });
+  		var xmax_key = Object.keys(xmax_dict).reduce(function(a, b){ return xmax_dict[a] > xmax_dict[b] ? a : b });
+  		var xmin_key = Object.keys(xmin_dict).reduce(function(a, b){ return xmin_dict[a] < xmin_dict[b] ? a : b });
+
+  		new_x = x.domain([xmin_dict[xmin_key], xmax_dict[xmax_key]]);
+  		new_y = y.domain([ymin_dict[ymin_key], ymax_dict[ymax_key]]);
+  	}
+    else {
+      new_x = x.domain([0, 1000]);
+      new_y = y.domain([-100, 100]); 
+    }
+
+  	gX.transition().duration(750).call(xAxis);
+  	gY.transition().duration(750).call(yAxis);
+  	glX.transition().duration(750).call(xGrid);
+  	glY.transition().duration(750).call(yGrid);
+  	d3.selectAll(".line").attr("d", meanline.x(function(d) {return new_x(d.Episodes);}));
+    d3.selectAll(".line").attr("d", meanline.y(function(d) {return new_y(d.mean);}));
+    d3.selectAll(".area").attr("d", area.x(function(d) {return new_x(d.Episodes);}));
+    d3.selectAll(".area").attr("d", area.y0(function(d) {return new_y(d.bottom);}));
+    d3.selectAll(".area").attr("d", area.y1(function(d) {return new_y(d.top);}));
+  }
+}
+
+function filter(ele)
+{
+	var feature_state = ele.checked;
+  var feature_id = ele.id;
+	
+  if (feature_state) {
+		if (feature_id == "moving_avg") {
+			line_opacity = 1;
+		}
+		else {
+			area_opacity = 1;
+		}
+	} 
+	else{
+		if (feature_id == "moving_avg") {
+			line_opacity = 0;
+		}
+		else {
+			area_opacity = 0;
+		}
+	}
+
+	d3.selectAll(".line").style("opacity", line_opacity);
+  d3.selectAll(".area").style("opacity", area_opacity);
+
+}
+
+function getRandomColor() {
+	var letters = '0123456789ABCDEF'.split('');
+	var color = '#';
+	for (var i = 0; i < 6; i++ ) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+ 	return color;
+}
+
+</script>
+
+
