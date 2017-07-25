@@ -139,10 +139,15 @@ var xmin_dict = {},
 	xmax_dict = {},
 	ymin_dict = {},
 	ymax_dict = {},
-	stroke_dict = {};
+	stroke_dict = {},
+  check_dict = {},
+  cur_run = [];
 
 var line_opacity = 0,
-	area_opacity = 0;
+	area_opacity = 0,
+  mline_opacity = 0,
+  mcircle_opacity = 0,
+  mtext_opacity = 0;
 
 var margin = {top: 20, right: 20, bottom: 30, left: 40},
   width = 800 - margin.left - margin.right,
@@ -234,6 +239,7 @@ d3.csv(runname + ".csv", function(error, data) {
 });
 
 
+
 // functions
 function baseName(str)
 {
@@ -312,15 +318,15 @@ function update(ele)
     		d.bottom = +d.bottom;
   		});
 
-  		ymin_dict[run_id] = d3.min(data, function(d) {return d.bottom} );
-  		ymax_dict[run_id] = d3.max(data, function(d) {return d.top});
-			xmin_dict[run_id] = d3.min(data, function(d) {return d.Episodes} );
+  		ymin_dict[run_id] = d3.min(data, function(d) {return d.bottom});
+      ymax_dict[run_id] = d3.max(data, function(d) {return d.top});
+			xmin_dict[run_id] = d3.min(data, function(d) {return d.Episodes});
   		xmax_dict[run_id] = d3.max(data, function(d) {return d.Episodes});
 
   		if (!(run_id in stroke_dict)) {
   		  stroke_dict[run_id] = getRandomColor();
   		}
-  			
+  		
   		var ymax_key = Object.keys(ymax_dict).reduce(function(a, b){ return ymax_dict[a] > ymax_dict[b] ? a : b });
   		var ymin_key = Object.keys(ymin_dict).reduce(function(a, b){ return ymin_dict[a] < ymin_dict[b] ? a : b });
   		var xmax_key = Object.keys(xmax_dict).reduce(function(a, b){ return xmax_dict[a] > xmax_dict[b] ? a : b });
@@ -360,17 +366,205 @@ function update(ele)
   		gY.transition().duration(750).call(yAxis);
   		glX.transition().duration(750).call(xGrid);
   		glY.transition().duration(750).call(yGrid);
-  		d3.selectAll(".line").attr("d", meanline.x(function(d) {return new_x(d.Episodes);}));
-    	d3.selectAll(".line").attr("d", meanline.y(function(d) {return new_y(d.mean);}));
-    	d3.selectAll(".area").attr("d", area.x(function(d) {return new_x(d.Episodes);}));
-    	d3.selectAll(".area").attr("d", area.y0(function(d) {return new_y(d.bottom);}));
-    	d3.selectAll(".area").attr("d", area.y1(function(d) {return new_y(d.top);}));
+  		d3.selectAll(".line").transition().duration(750).attr("d", meanline.x(function(d) {return new_x(d.Episodes);}));
+    	d3.selectAll(".line").transition().duration(750).attr("d", meanline.y(function(d) {return new_y(d.mean);}));
+    	d3.selectAll(".area").transition().duration(750).attr("d", area.x(function(d) {return new_x(d.Episodes);}));
+    	d3.selectAll(".area").transition().duration(750).attr("d", area.y0(function(d) {return new_y(d.bottom);}));
+    	d3.selectAll(".area").transition().duration(750).attr("d", area.y1(function(d) {return new_y(d.top);}));
 
+      var mouseG = svg.append("g")
+        .attr("class", "mouse-over-effects");
+
+      mouseG.append("path")
+        .attr("class", "mouse-line")
+        .style("stroke", "black")
+        .style("stroke-width", "1px")
+        .style("opacity", "0");
+
+      var line_cur = document.getElementsByClassName('line');
+
+      var mouse_circle = svg.append("circle")
+        .attr("class", "mouse-circle")
+        .attr("id", "mouse-circle" + run_id)
+        .attr("r", 6)
+        .attr("stroke", stroke_dict[run_id])
+        .attr("fill", "none")
+        .style("opacity", "0");
+    
+      text_f = svg.append("text")
+        .attr("class", "mouse-text")
+        .attr("id", "mouse-text" + run_id)
+        .attr("transform", "translate(10, 3)")
+        .text("");
+
+      mouseG.append('svg:rect')
+        .attr('width', width) 
+        .attr('height', height)
+        .attr('fill', 'none')
+        .attr('pointer-events', 'all')
+        .on('mouseout', function() { 
+          d3.select(".mouse-line")
+            .style("opacity", "0");
+          d3.selectAll(".mouse-circle")
+            .style("opacity", "0");
+          d3.selectAll(".mouse-text")
+            .style("opacity", "0");
+        })
+        .on('mouseover', function() {
+          d3.select(".mouse-line")
+            .style("opacity", mline_opacity);
+          d3.selectAll(".mouse-circle")
+            .style("opacity", mcircle_opacity);
+          d3.selectAll(".mouse-text")
+            .style("opacity", mtext_opacity);
+        })
+        .on('mousemove', function() { 
+          var mouse = d3.mouse(this);
+          d3.select(".mouse-line")
+            .attr("d", function() {
+              var d = "M" + mouse[0] + "," + height;
+              d += " " + mouse[0] + "," + 0;
+              return d;
+            });
+
+          d3.selectAll(".mouse-circle")
+            .attr("transform", function(d, i) {
+              var beginning = 0,
+              end = line_cur[i].getTotalLength(),
+              target = null;
+
+              while (true){
+                target = Math.floor((beginning + end) / 2);
+                pos = line_cur[i].getPointAtLength(target);
+                //console.log(pos);
+                if ((target === end || target === beginning) && pos.x !== mouse[0]) {
+                  break;
+                }
+                if (pos.x > mouse[0]) end = target;
+                else if (pos.x < mouse[0])  beginning = target;
+                else break; 
+              }
+              return "translate(" + mouse[0] + "," + pos.y +")";
+            })
+            .style("opacity", function(d, i) {
+              if ((mouse[0] >= xmin_dict[(line_cur[i].id).replace("line", "")]) && (x.invert(mouse[0]) <= xmax_dict[(line_cur[i].id).replace("line", "")])) {
+                return mcircle_opacity;
+              }
+              else return 0;
+            });
+
+          d3.selectAll(".mouse-text")
+            .attr("transform", function(d, i) {
+              var beginning = 0,
+              end = line_cur[i].getTotalLength(),
+              target = null;
+
+              while (true){
+                target = Math.floor((beginning + end) / 2);
+                pos = line_cur[i].getPointAtLength(target);
+                //console.log(pos);
+                if ((target === end || target === beginning) && pos.x !== mouse[0]) {
+                  break;
+                }
+                if (pos.x > mouse[0]) end = target;
+                else if (pos.x < mouse[0])  beginning = target;
+                else break; 
+              }
+              var text_x = mouse[0] + 10,
+                text_y = pos.y + 2;
+              return "translate(" + text_x + "," + text_y +")";
+            }).text(function(d, i) {
+              var beginning = 0,
+              end = line_cur[i].getTotalLength(),
+              target = null;
+
+              while (true){
+                target = Math.floor((beginning + end) / 2);
+                pos = line_cur[i].getPointAtLength(target);
+                //console.log(pos);
+                if ((target === end || target === beginning) && pos.x !== mouse[0]) {
+                  break;
+                }
+                if (pos.x > mouse[0]) end = target;
+                else if (pos.x < mouse[0])  beginning = target;
+                else break; 
+              }
+              return (line_cur[i].id).replace("line", "") + ": " + y.invert(pos.y).toFixed(2);
+            })
+            .style("opacity", function(d, i) {
+              if ((mouse[0] >= xmin_dict[(line_cur[i].id).replace("line", "")]) && (x.invert(mouse[0]) <= xmax_dict[(line_cur[i].id).replace("line", "")])) {
+                return mtext_opacity;
+              }
+              else return 0;
+            });
+        });
+
+        var legend = svg.append("g")
+          .attr('class', 'legend')
+          .attr('id', 'item-legend' + run_id);
+
+        svg.selectAll(".legend").append('rect')
+          .attr('class', 'line-legend')
+          .attr('x', width - 50)
+          .attr('y', function(d, i) {
+            return i * 20;
+          })
+          .attr('width', 10)
+          .attr('height', 10)
+          .style('fill', function(d, i) {
+            return stroke_dict[(line_cur[i].id).replace("line", "")];
+          });
+
+        svg.selectAll(".legend").append('text')
+          .attr('x', width - 38)
+          .attr('y', function(d, i) {
+            return (i * 20) + 9;
+          })
+          .text(function(d, i) {
+            if (check_dict[(line_cur[i].id).replace("line", "")] == 1) {
+              return "";
+            }
+            else {
+              check_dict[(line_cur[i].id).replace("line", "")] = 1;
+              return (line_cur[i].id).replace("line", "");
+            }
+          });
     });
   }
 	else {
     d3.select("#area" + run_id).remove();
 		d3.select("#line" + run_id).remove();
+    d3.select("#mouse-circle" + run_id).remove();
+    d3.select("#mouse-text" + run_id).remove();
+    d3.selectAll(".legend").remove();
+
+    var line_cur1 = document.getElementsByClassName('line');
+    check_dict = {};
+    for (n = 1; n<=line_cur1.length; n++) {
+      svg.append("g")
+          .attr('class', 'legend');
+    }
+    svg.selectAll(".legend").append('rect')
+          .attr('x', width - 50)
+          .attr('y', function(d, i) {
+            return i * 20;
+          })
+          .attr('width', 10)
+          .attr('height', 10)
+          .style('fill', function(d, i) {
+            return stroke_dict[(line_cur1[i].id).replace("line", "")];
+          });
+
+        svg.selectAll(".legend").append('text')
+          .attr('x', width - 38)
+          .attr('y', function(d, i) {
+            return (i * 20) + 9;
+          })
+          .text(function(d, i) {
+            check_dict[(line_cur1[i].id).replace("line", "")] = 1;
+            return (line_cur1[i].id).replace("line", "");
+          });
+
 		delete xmin_dict[run_id];
 		delete xmax_dict[run_id];
 		delete ymin_dict[run_id];
@@ -394,11 +588,11 @@ function update(ele)
   	gY.transition().duration(750).call(yAxis);
   	glX.transition().duration(750).call(xGrid);
   	glY.transition().duration(750).call(yGrid);
-  	d3.selectAll(".line").attr("d", meanline.x(function(d) {return new_x(d.Episodes);}));
-    d3.selectAll(".line").attr("d", meanline.y(function(d) {return new_y(d.mean);}));
-    d3.selectAll(".area").attr("d", area.x(function(d) {return new_x(d.Episodes);}));
-    d3.selectAll(".area").attr("d", area.y0(function(d) {return new_y(d.bottom);}));
-    d3.selectAll(".area").attr("d", area.y1(function(d) {return new_y(d.top);}));
+  	d3.selectAll(".line").transition().duration(750).attr("d", meanline.x(function(d) {return new_x(d.Episodes);}));
+    d3.selectAll(".line").transition().duration(750).attr("d", meanline.y(function(d) {return new_y(d.mean);}));
+    d3.selectAll(".area").transition().duration(750).attr("d", area.x(function(d) {return new_x(d.Episodes);}));
+    d3.selectAll(".area").transition().duration(750).attr("d", area.y0(function(d) {return new_y(d.bottom);}));
+    d3.selectAll(".area").transition().duration(750).attr("d", area.y1(function(d) {return new_y(d.top);}));
   }
 }
 
@@ -408,6 +602,9 @@ function filter(ele)
   var feature_id = ele.id;
 	
   if (feature_state) {
+    mcircle_opacity = 1;
+    mline_opacity = 1;
+    mtext_opacity = 1;
 		if (feature_id == "moving_avg") {
 			line_opacity = 1;
 		}
@@ -416,6 +613,9 @@ function filter(ele)
 		}
 	} 
 	else{
+    mcircle_opacity = 0;
+    mline_opacity = 0;
+    mtext_opacity = 0;
 		if (feature_id == "moving_avg") {
 			line_opacity = 0;
 		}
