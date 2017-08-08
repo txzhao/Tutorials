@@ -1,0 +1,21 @@
+Run name,Environment name
+download_check,MountainCar-v0
+test1,CartPole-v0
+test_again,CartPole-v0
+test_all,CartPole-v0
+test_all_1,CartPole-v0
+test_all_2,CartPole-v0
+test_basic,CartPole-v0
+test_button,CartPole-v0
+test_download,CartPole-v0
+test_env,CartPole-v0
+test_env_1,MountainCar-v0
+test_field,CartPole-v0
+test_hidden,CartPole-v0
+test_legend,CartPole-v0
+test_mouse_line,MountainCar-v0
+test_mouseover,CartPole-v0
+test_multi-results,CartPole-v0
+test_plot_2,CartPole-v0
+test_plot_result,CartPole-v0
+test_plots_1,CartPole-v0
