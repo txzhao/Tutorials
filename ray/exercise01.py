@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import ray
 import time
-import ray.experimental.ui as ui
 
 ray.init(num_cpus=4, redirect_output=True)
 
@@ -46,6 +45,3 @@ assert duration > 1, ('The loop took {} seconds. This is too fast.'
                       .format(duration))
 
 print('Success! The example took {} seconds.'.format(duration))
-
-# launch UI to view task timeline
-ui.task_timeline()
